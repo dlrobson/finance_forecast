@@ -3,11 +3,6 @@ from abc import ABC, abstractmethod
 RRSP_ROOM_PERCENT = 0.18
 
 
-class Expenses:
-    def __init__(self, non_living_exp: float, rent: float):
-        pass
-
-
 class RegisteredAccount(ABC):
     @property
     def balance(self):
@@ -124,10 +119,11 @@ class EmergencyFund:
         self._balance += amount
 
 
+# TODO: capital losses
 class NonRegisteredAccount:
-    def __init__(self) -> None:
-        self._balance = 0
-        self._investment_costs = 0
+    def __init__(self, balance: float, investment_costs: float) -> None:
+        self._balance = balance
+        self._investment_costs = investment_costs
 
     @property
     def balance(self) -> float:

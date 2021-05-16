@@ -2,6 +2,7 @@ import unittest
 
 from saving_vessels import TFSA, RRSP, EmergencyFund, NonRegisteredAccount
 from expenses import Taxes, Mortgage, LivingExpenses, DEFAULT_CHILD_COSTS
+from savings import Person, rrsp_before_tax_calc, tax_payable
 
 BASIC_AMOUNT = 1000
 BRACKETS = [BASIC_AMOUNT, 11000, 111000]
@@ -63,18 +64,18 @@ class TestSavingMethods(unittest.TestCase):
         emergency_fund = EmergencyFund(0, 6)
         self.assertEqual(emergency_fund.balance, 0)
         self.assertEqual(emergency_fund.emergency_months, 6)
-        self.assertEqual(emergency_fund.amount_over_limit(1000), -6000)
+        self.assertEqual(emergency_fund.amount_under_limit(1000), 6000)
 
         emergency_fund.deposit(8000)
         self.assertEqual(emergency_fund.balance, 8000)
-        self.assertEqual(emergency_fund.amount_over_limit(1000), 2000)
+        self.assertEqual(emergency_fund.amount_under_limit(1000), -2000)
 
         emergency_fund.withdraw(2000)
         self.assertEqual(emergency_fund.balance, 6000)
-        self.assertEqual(emergency_fund.amount_over_limit(1000), 0)
+        self.assertEqual(emergency_fund.amount_under_limit(1000), 0)
 
     def test_non_reg_account(self):
-        non_reg_account = NonRegisteredAccount()
+        non_reg_account = NonRegisteredAccount(0, 0)
 
         # Buy 10000 worth of shares
         non_reg_account.deposit(10000)
@@ -86,16 +87,16 @@ class TestSavingMethods(unittest.TestCase):
         non_reg_account.deposit(9000)
 
         # Shares doubled in value
-        non_reg_account.increment_n_years(1, 1.00)
+        non_reg_account.increment_year(1.00)
         self.assertEqual(non_reg_account.balance, 20000)
         self.assertEqual(non_reg_account.withdraw(20000)[1], 10000 / 2)
 
         # Empty account again. Repeat double in value
         non_reg_account.deposit(5000)
-        non_reg_account.increment_n_years(1, 1.00)
+        non_reg_account.increment_year(1.00)
         non_reg_account.deposit(10000)
         self.assertEqual(non_reg_account.balance, 20000)
-        non_reg_account.increment_n_years(1, 1.00)
+        non_reg_account.increment_year(1.00)
         self.assertEqual(non_reg_account.balance, 40000)
         expected_capital_gains = (40000 - 15000) * (10000 / 40000)
         self.assertEqual(
@@ -187,5 +188,69 @@ class TestExpenseMethods(unittest.TestCase):
         )
 
 
+class TestPersonClass(unittest.TestCase):
+    def test_helpers(self):
+        BT_income = 100000
+        AT_income = BT_income - tax_payable(BT_income)
+        contribution = 20000
+        BT_after_calc = rrsp_before_tax_calc(contribution, AT_income, BT_income)
+        self.assertTrue(
+            abs(
+                contribution
+                - (AT_income - (BT_after_calc - tax_payable(BT_after_calc)))
+            )
+            < 1
+        )
+
+    def test_person(self):
+        age = 20
+        expenses = LivingExpenses(400, 1000)
+        tfsa = TFSA(0, 50000)
+        rrsp = RRSP(0, 50000)
+        nra = NonRegisteredAccount(0, 0)
+        emergency_fund = EmergencyFund(0)
+        salary = 100000
+        person = Person(age, expenses, salary, tfsa, rrsp, nra, emergency_fund)
+
+
 if __name__ == "__main__":
-    unittest.main()
+    # unittest.main()
+
+    age = 25
+    expenses = LivingExpenses(600, 1250)
+    tfsa = TFSA(52000, 0)
+    rrsp = RRSP(0, 28426)
+    nra = NonRegisteredAccount(0, 0)
+    emergency_fund = EmergencyFund(3000)
+    salary = 65000
+    person = Person(age, expenses, salary, tfsa, rrsp, nra, emergency_fund)
+    settings = person.settings
+    settings.max_tfsa_asap = True
+    person.settings = settings
+
+    # age = 23
+    # expenses = LivingExpenses(400, 1200)
+    # tfsa = TFSA(10000, 30000)
+    # rrsp = RRSP(0, 15000)
+    # nra = NonRegisteredAccount(0, 0)
+    # emergency_fund = EmergencyFund(5000)
+    # salary = 65000
+    # person = Person(age, expenses, salary, tfsa, rrsp, nra, emergency_fund)
+
+    mortgage = Mortgage(800000, 160000)
+    person.house_purchase(mortgage)
+
+    for _ in range(43):
+        print(
+            "Age: {:.2f}\t Salary: {:.2f}\t EF: {:.2f}\t TFSA: {:.2f}\t RRSP: {:.2f}"
+            "\t NRA: {:.2f}\t Mortgage Remaining: {:.2f}".format(
+                person._age,
+                person._salary,
+                person._emergency_fund.balance,
+                person._tfsa.balance,
+                person._rrsp.balance,
+                person._nra.balance,
+                person._mortgage_goal.mortgage.principal_remaining,
+            )
+        )
+        person.increment_n_years(1)

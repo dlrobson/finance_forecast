@@ -1,5 +1,5 @@
 class Taxes:
-    def __init__(self, brackets, tax_rates, basic_amount):
+    def __init__(self, brackets: list, tax_rates: list):
         if len(brackets) != len(tax_rates):
             raise Exception("Input array lengths do not align")
 
@@ -127,6 +127,25 @@ class Mortgage:
             self._principal_remaining -= principal_payment
             amount_paid += interest_payment + principal_payment
             if self._principal_remaining < 0:
+                break
+
+        return amount_paid
+
+    def expected_n_cost(self, n: float) -> float:
+
+        amount_paid = 0
+        principal = self._principal_remaining
+        for _ in range(n):
+
+            # The interest paid for the month is the accumulated interest based
+            # on its monthly rate
+            interest_payment = principal * self._rate
+            # Cannot pay more than the principal itself
+            principal_payment = min(self._monthly_payment - interest_payment, principal)
+
+            principal -= principal_payment
+            amount_paid += interest_payment + principal_payment
+            if principal < 0:
                 break
 
         return amount_paid
