@@ -265,3 +265,19 @@ class LivingExpenses:
             total_expenses += self._child_cost[age]
 
         return total_expenses
+
+
+class Expense:
+    def __init__(self, amount: float, initial_age: int, recurrance: int = 0) -> None:
+        self._amount = amount
+        self._initial_age = initial_age
+        self._recurrance = recurrance
+
+    def year_cost(self, age: int) -> float:
+        if self._initial_age == age:
+            return amount
+
+        if self._recurrance == 0:
+            return 0
+
+        return self._amount if (age - self._initial_age) % self._recurrance == 0 else 0

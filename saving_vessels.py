@@ -31,6 +31,19 @@ class RegisteredAccount(ABC):
 
 
 class TFSA(RegisteredAccount):
+    class Settings:
+        tfsa_yearly_room_increase = 6000
+
+    @property
+    def settings(self) -> Settings:
+        return self._settings
+
+    @settings.setter
+    def settings(self, new_settings: Settings) -> None:
+        self._settings = new_settings
+
+    _settings = Settings()
+
     def __init__(self, balance: float, contribution_room: float):
         self._balance = max(balance, 0)
         self._contribution_room = max(contribution_room, 0)
@@ -45,11 +58,12 @@ class TFSA(RegisteredAccount):
         self._balance -= withdraw_amount
         return withdraw_amount
 
-    def increment_year(self, room_increase: float, interest_rate: float) -> float:
+    def increment_year(self, interest_rate: float) -> None:
         self._balance *= 1 + interest_rate
-        self._contribution_room += room_increase + self._curr_year_withdrawals
+        self._contribution_room += (
+            self._settings.tfsa_yearly_room_increase + self._curr_year_withdrawals
+        )
         self._curr_year_withdrawals = 0
-        return room_increase
 
 
 class RRSP(RegisteredAccount):
@@ -119,7 +133,6 @@ class EmergencyFund:
         self._balance += amount
 
 
-# TODO: capital losses
 class NonRegisteredAccount:
     def __init__(self, balance: float, investment_costs: float) -> None:
         self._balance = balance
@@ -142,8 +155,9 @@ class NonRegisteredAccount:
         Returns:
             float: taxable capital gains
         """
+
         if self._balance == 0:
-            return 0
+            return (0, 0)
 
         # Can only withdraw up to the balance of the account
         amount = min(amount, self._balance)

@@ -1,5 +1,5 @@
 from saving_vessels import TFSA, RRSP, EmergencyFund, NonRegisteredAccount
-from expenses import Taxes, Mortgage, LivingExpenses, DEFAULT_CHILD_COSTS
+from expenses import Taxes, Mortgage, LivingExpenses, Expense, DEFAULT_CHILD_COSTS
 
 # TODO:
 # - Financial goals
@@ -8,7 +8,6 @@ from expenses import Taxes, Mortgage, LivingExpenses, DEFAULT_CHILD_COSTS
 #   - HBP ?
 # - Settings to tick
 #   - Max RRSP/TFSA before house, or after house
-#   - Max TFSA before saving for house
 #
 # Employer RRSP matching
 # Add two person functionality
@@ -65,27 +64,8 @@ class Person:
         def set_active(self, set_to_active=True) -> None:
             self._active = set_to_active
 
-    class Expense:
-        def __init__(
-            self, amount: float, initial_age: int, recurrance: int = 0
-        ) -> None:
-            self._amount = amount
-            self._initial_age = initial_age
-            self._recurrance = recurrance
-
-        def year_cost(self, age: int) -> float:
-            if self._initial_age == age:
-                return amount
-
-            if self._recurrance == 0:
-                return 0
-
-            return (
-                self._amount if (age - self._initial_age) % self._recurrance == 0 else 0
-            )
-
     class Settings:
-        max_tfsa_asap = True
+        allow_tfsa_withdrawal = True
         max_retirement_contribution = 0.15
         annual_salary_increase = 0.03
         retirement_age = 65
@@ -154,28 +134,39 @@ class Person:
         # Stores the Mortgage information
         self._mortgage_goal = self.MortgageGoal(mortgage)
 
-    def __withdrawable_cash(self) -> float:
+    def __withdrawable_cash(self, after_tax_calc: bool = False) -> float:
+        """After tax maximum withdrawable amount
 
+        Returns:
+            float: The maximum amount after tax that is withdrawn
+        """
         withdrawable_cash = 0
 
-        if not self._settings.max_tfsa_asap:
+        if not self._settings.allow_tfsa_withdrawal:
             withdrawable_cash += self._tfsa.balance * (
                 1 - self._tfsa_retirement_portion
             )
 
+        withdrawable_cash += self._nra._balance
+
+        if after_tax_calc:
+            return withdrawable_cash
+
         # This is the tax payable if the NRA account is emptied.
         additional_tax_payable = tax_payable(
-            self._salary + self._nra.capital_gains(self._nra.balance)
-        ) - tax_payable(self._salary)
+            self._salary
+            + self._nra.capital_gains(self._nra.balance)
+            + self._yearly_capital_gains_income
+        ) - tax_payable(self._salary + self._yearly_capital_gains_income)
 
-        withdrawable_cash += self._nra._balance - additional_tax_payable
+        withdrawable_cash -= additional_tax_payable
 
         return withdrawable_cash
 
     def __withdraw_cash(self, amount: float) -> float:
 
         # withdraw 0 if the requested amount is greater than the maximum allowed
-        if amount > self.__withdrawable_cash():
+        if amount > self.__withdrawable_cash(True):
             return 0
 
         # Manage NRA account withdrawals
@@ -234,9 +225,7 @@ class Person:
             # Iterate to next year
             self._yearly_capital_gains_income = 0
             self._salary *= 1 + self._settings.annual_salary_increase
-            self._tfsa.increment_year(
-                TFSA_YEARLY_ROOM_INCREASE, self._settings.index_fund_return
-            )
+            self._tfsa.increment_year(self._settings.index_fund_return)
             # Utilizes next year salary
             self._rrsp.increment_year(self._salary, self._settings.index_fund_return)
             self._nra.increment_year(self._settings.index_fund_return)
@@ -273,24 +262,28 @@ class Person:
             # same year that the house was purchased, reducing the amount of capital
             # gains to pay.
             else:
-                withdrawn_cash = self.__withdraw_cash(self.__withdrawable_cash())
+                withdrawn_cash = self.__withdraw_cash(self.__withdrawable_cash(True))
 
-        bt_income = self._salary + self._yearly_capital_gains_income
-        tax = tax_payable(bt_income)
-        at_income = bt_income - tax
+        # net_positive will hold how much money we have left after taxes and expenses.
+        # Initialize the value to negative so we can run through the while loop the
+        # first time, mimicing a do-while loop
+        net_positive = -1
+        while net_positive < 0:
+            bt_income = self._salary + self._yearly_capital_gains_income
+            tax = tax_payable(bt_income)
+            at_income = bt_income - tax
 
-        living_expenses = self.__annual_living_expenses()
-        net_positive = at_income + withdrawn_cash - living_expenses
+            living_expenses = self.__annual_living_expenses()
+            net_positive = at_income + withdrawn_cash - living_expenses
 
-        at_income = self._salary - tax_payable(self._salary)
+            # If this number if negative, then we need to withdraw enough money
+            if net_positive < 0:
+                # Iterate until our net_positive is zero
+                withdrawn_cash += self.__withdraw_cash(-net_positive)
+
         remaining_contribution_retirement = (
             self._settings.max_retirement_contribution * at_income
         )
-
-        # If this number if negative, then we need to withdraw enough money
-        if net_positive < 0:
-            # Iterate until our net_positive is zero
-            pass
 
         # Emergency Fund
         remaining_balance = self.__emergency_fund_contribution(net_positive)
@@ -346,12 +339,12 @@ class Person:
         # Second, deposit into the TFSA account. We need to make sure we contribute the
         # required remaining retirement portion. If we currently have a mortgage, we
         # will attempt to reduce how much we contribute to the TFSA. However, if the
-        # max_tfsa_asap flag is active, then we will maximize the tfsa regardless
+        # allow_tfsa_withdrawal flag is active, then we will maximize the tfsa regardless
         tfsa_retirement_amount = self._tfsa.balance * self._tfsa_retirement_portion
         if (
             self._mortgage_goal is not None
             and not self._mortgage_goal.mortgage.is_house_paid()
-            and not self._settings.max_tfsa_asap
+            and not self._settings.allow_tfsa_withdrawal
         ):
             # Either we can deposite the contribution room, the amount we need to deposit,
             # or the amount of money we have left to deposit.

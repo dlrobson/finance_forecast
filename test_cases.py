@@ -38,7 +38,10 @@ class TestSavingMethods(unittest.TestCase):
         self.assertEqual(tfsa_account.balance, 10000)
         self.assertEqual(tfsa_account.contribution_room, 0)
 
-        tfsa_account.increment_year(5000, 1.00)
+        settings = tfsa_account.settings
+        settings.tfsa_yearly_room_increase = 5000
+        tfsa_account.settings = settings
+        tfsa_account.increment_year(1.00)
         self.assertEqual(tfsa_account.balance, 10000 * 2)
         self.assertEqual(tfsa_account.contribution_room, 1000 + 5000)
 
@@ -225,7 +228,7 @@ if __name__ == "__main__":
     salary = 65000
     person = Person(age, expenses, salary, tfsa, rrsp, nra, emergency_fund)
     settings = person.settings
-    settings.max_tfsa_asap = True
+    settings.allow_tfsa_withdrawal = True
     person.settings = settings
 
     # age = 23
