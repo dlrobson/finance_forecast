@@ -1,19 +1,59 @@
+"""Class container holding various classes for Taxes, Mortgage, LivingExpenses, and
+Expenses.
+"""
+from typing import List
+
+
 class Taxes:
-    def __init__(self, brackets: list, tax_rates: list):
+    """Class that calculates the tax required to be paid given a specific income,
+    and manages the tax brackets
+    """
+
+    def __init__(self, brackets: List[float], tax_rates: List[float]) -> None:
+        """Instantiates the Taxes class. Takes in corresponding brackets and taxes
+        lists
+
+        Args:
+            brackets (List[float]): Tax brackets
+            tax_rates (List[float]): Tax rates for the given tax brackets
+
+        Raises:
+            Exception: Return if the brackets and tax_rates are not the same length
+        """
         if len(brackets) != len(tax_rates):
             raise Exception("Input array lengths do not align")
 
         self._brackets = brackets
         self._tax_rates = tax_rates
 
-    def brackets(self):
+    def brackets(self) -> List[float]:
+        """Getter for the tax brackets
+
+        Returns:
+            List[float]: Tax brackets
+        """
         return self._brackets
 
-    def tax_rates(self):
+    def tax_rates(self) -> List[float]:
+        """Getter for the tax rates
+
+        Returns:
+            List[float]: Tax rates
+        """
         return self._tax_rates
 
     def tax_payable(self, income: float) -> float:
+        """Calculates the total tax to be paid for a given income. The stored tax
+        brackets and rates are used for this calculation
 
+        Args:
+            income (float): Input income to calculate tax_payable
+
+        Returns:
+            float: The amount of tax that needs to be paid
+        """
+
+        # Income is less than basic amount
         if income < self.brackets()[0]:
             return 0
 
@@ -27,19 +67,35 @@ class Taxes:
             bracket_limit = self.brackets()[i]
             next_bracket_rate = self.tax_rates()[i]
 
+            # If this is our upper tax bracket, we need to calculate the tax payable,
+            # and exit the loop since we will not meet the higher brackets
             if income < bracket_limit:
                 total_tax_payable += (income - previous_bracket_limit) * bracket_rate
                 break
 
-            # Now we fully met this bracket requirements.
+            # Now we fully met this bracket requirements, so add the maximum tax paid
+            # for this bracket
             total_tax_payable += (bracket_limit - previous_bracket_limit) * bracket_rate
 
+            # If we are within the largest tax bracket, we need to calculate the amount
+            # before we exit the loop
             if i == len(self.brackets()) - 1:
                 total_tax_payable += (income - bracket_limit) * next_bracket_rate
 
         return total_tax_payable
 
-    def tax_paid_upper_bracket(self, income: float) -> float:
+    def income_in_upper_bracket(self, income: float) -> float:
+        """Calculates the amount of income within the upper tax bracket. Maybe helpful
+        for determining an optimal RRSP contribution
+
+        Args:
+            income (float): Input income to calculate tax_payable
+
+        Returns:
+            float: Amount of income within the highest paid tax bracket
+        """
+        # Iterate until we find the highest bracket for the provided income, then
+        # return
         for i in range(1, len(self.brackets())):
 
             previous_bracket_limit = self.brackets()[i - 1]
@@ -48,16 +104,34 @@ class Taxes:
             bracket_limit = self.brackets()[i]
             next_bracket_rate = self.tax_rates()[i]
 
+            # We've found the largest bracket
             if income < bracket_limit:
-                return (income - previous_bracket_limit) * bracket_rate
+                return income - previous_bracket_limit
 
+            # The largest bracket is the last bracket
             if i == len(self.brackets()) - 1:
-                return (income - bracket_limit) * next_bracket_rate
+                return income - bracket_limit
 
     def additional_tax_payable(self, income: float, additional_income: float) -> float:
+        """Determines the additional amount of tax that would need to be paid given an
+        increase in income.
+
+        Args:
+            income (float): Base income to compare
+            additional_income (float): Additional income to compare
+
+        Returns:
+            float: The extra amount of tax payable
+        """
         return self.tax_payable(income + additional_income) - self.tax_payable(income)
 
     def increment_values(self, increment: float) -> None:
+        """Increments the tax bracket values given a specific increase. Multiplies the
+        bracket value by (1 + increment)
+
+        Args:
+            increment (float): Amount to multiply each bracket by
+        """
         self._brackets = [x * (1 + increment) for x in self._brackets]
 
 
@@ -202,13 +276,13 @@ class LivingExpenses:
         self,
         living_costs: float,
         rent: float,
-        children_ages: list = [],
+        children_ages: list = None,
         monthly_cost_per_child: list = DEFAULT_CHILD_COSTS,
     ):
         self._living_costs = living_costs
         self._rent = rent
         self._child_cost = monthly_cost_per_child
-        self._children_ages = children_ages
+        self._children_ages = list() if children_ages is None else children_ages
 
     @property
     def living_costs(self):
@@ -283,3 +357,19 @@ class Expense:
         return (
             self._amount if (year - self._initial_year) % self._recurrance == 0 else 0
         )
+
+
+FEDERAL_BASIC_AMOUNT = 13229
+FEDERAL_BRACKETS = [FEDERAL_BASIC_AMOUNT, 48535, 97070, 150474, 214368]
+FEDERAL_TAX_RATES = [0.1500, 0.2050, 0.2600, 0.2900, 0.3300]
+
+ONTARIO_BASIC_AMOUNT = 10783
+ONTARIO_BRACKETS = [ONTARIO_BASIC_AMOUNT, 44740, 89482, 150000, 220000]
+ONTARIO_TAX_RATES = [0.0505, 0.0915, 0.1116, 0.1216, 0.1316]
+
+federal_tax = Taxes(FEDERAL_BRACKETS, FEDERAL_TAX_RATES)
+ontario_tax = Taxes(ONTARIO_BRACKETS, ONTARIO_TAX_RATES)
+
+
+def tax_payable(income: float) -> float:
+    return federal_tax.tax_payable(income) + ontario_tax.tax_payable(income)

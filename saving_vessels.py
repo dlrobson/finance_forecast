@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
+from expenses import tax_payable
 
 RRSP_ROOM_PERCENT = 0.18
+TFSA_YEARLY_ROOM_INCREASE = 6000
 
 
 class RegisteredAccount(ABC):
@@ -32,7 +34,7 @@ class RegisteredAccount(ABC):
 
 class TFSA(RegisteredAccount):
     class Settings:
-        tfsa_yearly_room_increase = 6000
+        tfsa_yearly_room_increase = TFSA_YEARLY_ROOM_INCREASE
 
     @property
     def settings(self) -> Settings:
@@ -188,3 +190,20 @@ class NonRegisteredAccount:
 
     def increment_year(self, growth: float) -> None:
         self._balance *= 1 + growth
+
+
+def rrsp_before_tax_calc(
+    AT_deduction: float, AT_original: float, BT_original: float
+) -> float:
+    # We need to iteratively find the amount of before tax income where the
+    # difference with the original and solved after tax income is the after
+    # tax deduction.
+    BT_guess = BT_original
+    AT_guess = BT_original - tax_payable(BT_guess)
+    while abs(abs(AT_original - AT_guess) - AT_deduction) > 0.1:
+
+        diff = abs(AT_original - AT_guess) - AT_deduction
+        BT_guess += diff
+        AT_guess = BT_guess - tax_payable(BT_guess)
+
+    return BT_guess

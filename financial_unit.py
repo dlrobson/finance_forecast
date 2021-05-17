@@ -1,6 +1,8 @@
-from saving_vessels import TFSA, RRSP, EmergencyFund, NonRegisteredAccount
-from expenses import Taxes, Mortgage, LivingExpenses, Expense, DEFAULT_CHILD_COSTS
 from typing import List
+
+from expenses import Expense, LivingExpenses, Mortgage, tax_payable
+from saving_vessels import rrsp_before_tax_calc
+from person import Person
 
 # TODO:
 # - Financial goals
@@ -16,150 +18,8 @@ from typing import List
 # Pretty graphs
 # Comments everywhere
 
-INDEX_RETURN = 0.07
-TFSA_YEARLY_ROOM_INCREASE = 6000
 
-FEDERAL_BASIC_AMOUNT = 13229
-FEDERAL_BRACKETS = [FEDERAL_BASIC_AMOUNT, 48535, 97070, 150474, 214368]
-FEDERAL_TAX_RATES = [0.1500, 0.2050, 0.2600, 0.2900, 0.3300]
-
-ONTARIO_BASIC_AMOUNT = 10783
-ONTARIO_BRACKETS = [ONTARIO_BASIC_AMOUNT, 44740, 89482, 150000, 220000]
-ONTARIO_TAX_RATES = [0.0505, 0.0915, 0.1116, 0.1216, 0.1316]
-
-federal_tax = Taxes(FEDERAL_BRACKETS, FEDERAL_TAX_RATES)
-ontario_tax = Taxes(ONTARIO_BRACKETS, ONTARIO_TAX_RATES)
-
-
-def tax_payable(income: float) -> float:
-    return federal_tax.tax_payable(income) + ontario_tax.tax_payable(income)
-
-
-def rrsp_before_tax_calc(
-    AT_deduction: float, AT_original: float, BT_original: float
-) -> float:
-    # We need to iteratively find the amount of before tax income where the
-    # difference with the original and solved after tax income is the after
-    # tax deduction.
-    BT_guess = BT_original
-    AT_guess = BT_original - tax_payable(BT_guess)
-    while abs(abs(AT_original - AT_guess) - AT_deduction) > 0.1:
-
-        diff = abs(AT_original - AT_guess) - AT_deduction
-        BT_guess += diff
-        AT_guess = BT_guess - tax_payable(BT_guess)
-
-    return BT_guess
-
-
-class Person:
-    def __init__(
-        self,
-        age: int,
-        yearly_salary_BT: float,
-        tfsa: TFSA,
-        rrsp: RRSP,
-        taxable_account: NonRegisteredAccount,
-        emergency_fund: EmergencyFund,
-    ) -> None:
-        self._salary = yearly_salary_BT
-        self._age = age
-        self._tfsa = tfsa
-        self._rrsp = rrsp
-        self._nra = taxable_account
-        self._emergency_fund = emergency_fund
-
-    def withdrawable_cash(self, after_tax_calc: bool = False) -> float:
-        """After tax maximum withdrawable amount
-
-        Returns:
-            float: The maximum amount after tax that is withdrawn
-        """
-        withdrawable_cash = 0
-
-        if not self._settings.allow_tfsa_withdrawal:
-            withdrawable_cash += self._tfsa.balance * (
-                1 - self._tfsa_retirement_portion
-            )
-
-        withdrawable_cash += self._nra._balance
-
-        if after_tax_calc:
-            return withdrawable_cash
-
-        # This is the tax payable if the NRA account is emptied.
-        additional_tax_payable = tax_payable(
-            self._salary
-            + self._nra.capital_gains(self._nra.balance)
-            + self._yearly_capital_gains_income
-        ) - tax_payable(self._salary + self._yearly_capital_gains_income)
-
-        withdrawable_cash -= additional_tax_payable
-
-        return withdrawable_cash
-
-    def withdraw_cash(self, amount: float) -> float:
-
-        # withdraw 0 if the requested amount is greater than the maximum allowed
-        if amount > self.withdrawable_cash(True):
-            return 0
-
-        # Manage NRA account withdrawals
-        total_withdrawn, capital_gains = self._nra.withdraw(amount)
-        self._yearly_capital_gains_income += capital_gains
-
-        remaining_withdraw = amount - total_withdrawn
-
-        # Manage TFSA account withdrawals
-        self._tfsa_retirement_portion = (
-            self._tfsa.balance * self._tfsa_retirement_portion
-        ) / (self._tfsa.balance - remaining_withdraw)
-
-        total_withdrawn += self._tfsa.withdraw(remaining_withdraw)
-
-        return total_withdrawn
-
-    class Settings:
-        allow_tfsa_withdrawal = True
-        max_retirement_contribution = 0.15
-        annual_salary_increase = 0.03
-        retirement_age = 65
-        index_fund_return = INDEX_RETURN
-
-    _settings = Settings()
-    _tfsa_retirement_portion = 0
-    _yearly_capital_gains_income = 0
-
-    @property
-    def settings(self) -> Settings:
-        return self._settings
-
-    @settings.setter
-    def settings(self, new_settings: Settings) -> None:
-        self._settings = new_settings
-
-    @property
-    def tfsa(self) -> TFSA:
-        return self._tfsa
-
-    @property
-    def rrsp(self) -> RRSP:
-        return self._rrsp
-
-    @property
-    def nra(self) -> NonRegisteredAccount:
-        return self._nra
-
-    @property
-    def tfsa_retirement_portion(self) -> float:
-        return self._tfsa_retirement_portion
-
-    @tfsa_retirement_portion.setter
-    def tfsa_retirement_portion(self, new_tfsa_retirement_portion: float) -> None:
-        self._tfsa_retirement_portion = new_tfsa_retirement_portion
-
-
-class FinancialUnit(Person):
+class FinancialUnit:
     def __init__(
         self, init_year: int, persons: List[Person], living_expenses: LivingExpenses
     ) -> None:
@@ -293,7 +153,7 @@ class FinancialUnit(Person):
                 # Iterate to next year
                 self._persons[person_i]._yearly_capital_gains_income = 0
                 self._persons[person_i]._salary *= (
-                    1 + self._settings.annual_salary_increase
+                    1 + self._persons[person_i]._settings.annual_salary_increase
                 )
                 self._persons[person_i]._tfsa.increment_year(
                     self._persons[person_i]._settings.index_fund_return
@@ -448,7 +308,7 @@ class FinancialUnit(Person):
         if (
             self._mortgage_goal is not None
             and not self._mortgage_goal.mortgage.is_house_paid()
-            and not self._settings.allow_tfsa_withdrawal
+            and not self._persons[person_i]._settings.allow_tfsa_withdrawal
         ):
             # Either we can deposite the contribution room, the amount we need to deposit,
             # or the amount of money we have left to deposit.
