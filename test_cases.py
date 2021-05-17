@@ -1,8 +1,9 @@
 import unittest
+from copy import deepcopy
 
 from saving_vessels import TFSA, RRSP, EmergencyFund, NonRegisteredAccount
 from expenses import Taxes, Mortgage, LivingExpenses, DEFAULT_CHILD_COSTS
-from savings import Person, rrsp_before_tax_calc, tax_payable
+from savings import FinancialUnit, Person, rrsp_before_tax_calc, tax_payable
 
 BASIC_AMOUNT = 1000
 BRACKETS = [BASIC_AMOUNT, 11000, 111000]
@@ -11,7 +12,7 @@ TAX_RATES = [0.1, 0.2, 0.3]
 
 class TestSavingMethods(unittest.TestCase):
     def test_tax_check(self):
-        federal_tax = Taxes(BRACKETS, TAX_RATES, BASIC_AMOUNT)
+        federal_tax = Taxes(BRACKETS, TAX_RATES)
         self.assertEqual(federal_tax.tax_payable(-1000), 0)
         self.assertEqual(federal_tax.tax_payable(0), 0)
         self.assertEqual(federal_tax.tax_payable(1000), 0)
@@ -19,7 +20,7 @@ class TestSavingMethods(unittest.TestCase):
         self.assertEqual(federal_tax.tax_payable(111000), 21000)
 
     def test_tax_increment(self):
-        federal_tax = Taxes(BRACKETS, TAX_RATES, BASIC_AMOUNT)
+        federal_tax = Taxes(BRACKETS, TAX_RATES)
         federal_tax.increment_values(0.01)
         self.assertEqual(federal_tax.brackets()[0], 1000 * 1.01)
         self.assertEqual(federal_tax.brackets()[1], 11000 * 1.01)
@@ -205,31 +206,28 @@ class TestPersonClass(unittest.TestCase):
             < 1
         )
 
-    def test_person(self):
-        age = 20
-        expenses = LivingExpenses(400, 1000)
-        tfsa = TFSA(0, 50000)
-        rrsp = RRSP(0, 50000)
-        nra = NonRegisteredAccount(0, 0)
-        emergency_fund = EmergencyFund(0)
-        salary = 100000
-        person = Person(age, expenses, salary, tfsa, rrsp, nra, emergency_fund)
-
 
 if __name__ == "__main__":
-    # unittest.main()
+    unittest.main()
 
     age = 25
-    expenses = LivingExpenses(600, 1250)
     tfsa = TFSA(52000, 0)
     rrsp = RRSP(0, 28426)
     nra = NonRegisteredAccount(0, 0)
     emergency_fund = EmergencyFund(3000)
     salary = 65000
-    person = Person(age, expenses, salary, tfsa, rrsp, nra, emergency_fund)
+
+    person = Person(age, salary, tfsa, rrsp, nra, emergency_fund)
     settings = person.settings
     settings.allow_tfsa_withdrawal = True
     person.settings = settings
+
+    person2 = deepcopy(person)
+
+    people = [person, person2]
+
+    expenses = LivingExpenses(600, 1250)
+    finances = FinancialUnit(2020, people, expenses)
 
     # age = 23
     # expenses = LivingExpenses(400, 1200)
@@ -241,19 +239,20 @@ if __name__ == "__main__":
     # person = Person(age, expenses, salary, tfsa, rrsp, nra, emergency_fund)
 
     mortgage = Mortgage(800000, 160000)
-    person.house_purchase(mortgage)
+    finances.house_purchase(mortgage)
 
     for _ in range(43):
-        print(
-            "Age: {:.2f}\t Salary: {:.2f}\t EF: {:.2f}\t TFSA: {:.2f}\t RRSP: {:.2f}"
-            "\t NRA: {:.2f}\t Mortgage Remaining: {:.2f}".format(
-                person._age,
-                person._salary,
-                person._emergency_fund.balance,
-                person._tfsa.balance,
-                person._rrsp.balance,
-                person._nra.balance,
-                person._mortgage_goal.mortgage.principal_remaining,
+        for person_i in range(len(finances.persons)):
+            print(
+                "Age: {:.2f}\t Salary: {:.2f}\t EF: {:.2f}\t TFSA: {:.2f}\t RRSP: {:.2f}"
+                "\t NRA: {:.2f}\t Mortgage Remaining: {:.2f}".format(
+                    finances.persons[person_i]._age,
+                    finances.persons[person_i]._salary,
+                    finances.persons[person_i]._emergency_fund.balance,
+                    finances.persons[person_i]._tfsa.balance,
+                    finances.persons[person_i]._rrsp.balance,
+                    finances.persons[person_i]._nra.balance,
+                    finances._mortgage_goal.mortgage.principal_remaining,
+                )
             )
-        )
-        person.increment_n_years(1)
+        finances.increment_n_years(1)
