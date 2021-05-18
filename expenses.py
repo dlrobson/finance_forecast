@@ -105,9 +105,7 @@ class Taxes:
             if income < bracket_limit:
                 return income - previous_bracket_limit
 
-            # The largest bracket is the last bracket
-            if i == len(self.brackets()) - 1:
-                return income - bracket_limit
+        return income - self.brackets()[-1]
 
     def additional_tax_payable(self, income: float, additional_income: float) -> float:
         """Determines the additional amount of tax that would need to be paid given an
@@ -315,7 +313,7 @@ class Mortgage:
         Returns:
             bool: True if no principal remains in the mortgage.
         """
-        return True if self._principal_remaining < 0.01 else False
+        return self._principal_remaining < 0.01
 
 
 DEFAULT_CHILD_COSTS = [
@@ -353,7 +351,7 @@ class LivingExpenses:
         living_costs: float,
         rent: float,
         children_ages: list = None,
-        monthly_cost_per_child: list = DEFAULT_CHILD_COSTS,
+        monthly_cost_per_child: list = None,
     ):
         """Initializer for the Living expenses class.
 
@@ -368,12 +366,16 @@ class LivingExpenses:
 
             monthly_cost_per_child (list, optional): Monthly costs per child
             given their age. Each entry in the list is the monthly cost of the
-            child for the corresponding index. Defaults to DEFAULT_CHILD_COSTS.
+            child for the corresponding index. Defaults to None.
         """
         self._living_costs = living_costs
         self._rent = rent
-        self._child_cost = monthly_cost_per_child
         self._children_ages = list() if children_ages is None else children_ages
+        self._child_cost = (
+            DEFAULT_CHILD_COSTS
+            if monthly_cost_per_child is None
+            else monthly_cost_per_child
+        )
 
     @property
     def living_costs(self) -> float:
@@ -526,8 +528,8 @@ ONTARIO_BASIC_AMOUNT = 10783
 ONTARIO_BRACKETS = [ONTARIO_BASIC_AMOUNT, 44740, 89482, 150000, 220000]
 ONTARIO_TAX_RATES = [0.0505, 0.0915, 0.1116, 0.1216, 0.1316]
 
-federal_tax = Taxes(FEDERAL_BRACKETS, FEDERAL_TAX_RATES)
-ontario_tax = Taxes(ONTARIO_BRACKETS, ONTARIO_TAX_RATES)
+FEDERAL_TAX = Taxes(FEDERAL_BRACKETS, FEDERAL_TAX_RATES)
+ONTARIO_TAX = Taxes(ONTARIO_BRACKETS, ONTARIO_TAX_RATES)
 
 
 def tax_payable(income: float) -> float:
@@ -539,4 +541,4 @@ def tax_payable(income: float) -> float:
     Returns:
         float: Required Federal and Ontario tax to pay.
     """
-    return federal_tax.tax_payable(income) + ontario_tax.tax_payable(income)
+    return FEDERAL_TAX.tax_payable(income) + ONTARIO_TAX.tax_payable(income)
