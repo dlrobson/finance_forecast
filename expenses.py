@@ -99,10 +99,7 @@ class Taxes:
         for i in range(1, len(self.brackets())):
 
             previous_bracket_limit = self.brackets()[i - 1]
-            bracket_rate = self.tax_rates()[i - 1]
-
             bracket_limit = self.brackets()[i]
-            next_bracket_rate = self.tax_rates()[i]
 
             # We've found the largest bracket
             if income < bracket_limit:
@@ -136,6 +133,8 @@ class Taxes:
 
 
 class Mortgage:
+    """Mortgage class. Manages the mortgage payments for a property."""
+
     def __init__(
         self,
         house_cost: float,
@@ -143,6 +142,14 @@ class Mortgage:
         rate: float = 0.03,
         period: float = 25,
     ):
+        """Initializes the class with the house payment information.
+
+        Args:
+            house_cost (float): Initial full cost of the house (dollars)
+            down_payment (float): Original down payment for the house (dollars)
+            rate (float, optional): House interest rate. Defaults to 0.03.
+            period (float, optional): House payment period. Defaults to 25.
+        """
         self._rate = rate / 12
         self._period = period * 12
 
@@ -165,26 +172,66 @@ class Mortgage:
 
     @property
     def down_payment(self) -> float:
+        """Getter for the size of the down payment
+
+        Returns:
+            float: down payment amount
+        """
         return self._down_payment
 
     @property
     def monthly_payment(self) -> float:
+        """Returns the monthly payment amount.
+
+        Returns:
+            float: Monthly payment in dollars
+        """
         return self._monthly_payment
 
     @property
     def principal_remaining(self) -> float:
+        """Remaining principal remaining for the house
+
+        Returns:
+            float: Principal remaining in dollars
+        """
         return self._principal_remaining
 
     @property
     def interest_paid(self) -> float:
+        """Interest that's been paid so far in the mortgage
+
+        Returns:
+            float: Amount of interest paid in dollars
+        """
         return self._interest_paid
 
     def additional_payment(self, payment: float) -> float:
+        """Pay an additional payment that brings down the down payment. Returns
+        the amount paid as an additional payment, which caps to the current
+        remaining principal.
+
+        Args:
+            payment (float): Amount to pay down the principal
+
+        Returns:
+            float: The amount paid down on the prinicpal
+        """
         amount_paid = min(payment, self._principal_remaining)
         self._principal_remaining -= amount_paid
         return amount_paid
 
     def iterate_n_months(self, n: float) -> float:
+        """Iterates the mortgage n months forward in the future. Decreases the
+        remaining principal, and interest paid. Returns the amount paid during
+        the iteration
+
+        Args:
+            n (float): Number of months to iterate
+
+        Returns:
+            float: The amount paid for the duration
+        """
 
         amount_paid = 0
         for _ in range(n):
@@ -206,6 +253,20 @@ class Mortgage:
         return amount_paid
 
     def expected_n_cost(self, n: float) -> float:
+        """Copy of iterate_n_months function, however this does not affect the
+        internal variables. Good for predictions. A description of
+        iterate_n_months:
+
+        Iterates the mortgage n months forward in the future. Decreases the
+        remaining principal, and interest paid. Returns the amount paid during
+        the iteration
+
+        Args:
+            n (float): Number of months to iterate
+
+        Returns:
+            float: The amount paid for the duration
+        """
 
         amount_paid = 0
         principal = self._principal_remaining
@@ -225,7 +286,11 @@ class Mortgage:
         return amount_paid
 
     def expected_payoff_months(self) -> int:
+        """The expected number of months required to fully pay off the mortgage
 
+        Returns:
+            int: The number of months required to pay off the mortgage.
+        """
         num_months = 0
         principal_remaining = self._principal_remaining
         while True:
@@ -244,6 +309,12 @@ class Mortgage:
                 return num_months
 
     def is_house_paid(self) -> bool:
+        """Asserts whether the house has been fully paid. It is assumed paid
+        if less than 0.01 dollars remain in the principal.
+
+        Returns:
+            bool: True if no principal remains in the mortgage.
+        """
         return True if self._principal_remaining < 0.01 else False
 
 
@@ -272,6 +343,11 @@ DEFAULT_CHILD_COSTS = [
 
 
 class LivingExpenses:
+    """Simple class to keep track of the living expenses. It is capable of
+    determining the monthly costs given the number of children, rent/mortgage,
+    and expected monthly expenses.
+    """
+
     def __init__(
         self,
         living_costs: float,
@@ -279,42 +355,95 @@ class LivingExpenses:
         children_ages: list = None,
         monthly_cost_per_child: list = DEFAULT_CHILD_COSTS,
     ):
+        """Initializer for the Living expenses class.
+
+        Args:
+            living_costs (float): Expected living expenses in dollars.
+
+            rent (float): Expected monthly rental cost
+
+            children_ages (list, optional): A list containing the current ages
+            of the children. The child ages will be maintained. Defaults to
+            None.
+
+            monthly_cost_per_child (list, optional): Monthly costs per child
+            given their age. Each entry in the list is the monthly cost of the
+            child for the corresponding index. Defaults to DEFAULT_CHILD_COSTS.
+        """
         self._living_costs = living_costs
         self._rent = rent
         self._child_cost = monthly_cost_per_child
         self._children_ages = list() if children_ages is None else children_ages
 
     @property
-    def living_costs(self):
+    def living_costs(self) -> float:
+        """Living costs getter.
+
+        Returns:
+            float: Living costs in dollars
+        """
         return self._living_costs
 
     @living_costs.setter
     def living_costs(self, new_living_cost: float) -> bool:
+        """Living costs setter
+
+        Args:
+            new_living_cost (float): New monthly living cost
+
+        Returns:
+            bool: Returns True if successfully replaced the living costs
+        """
         self._living_costs = new_living_cost
         return True
 
     @property
-    def rent(self):
+    def rent(self) -> float:
+        """Rent getter
+
+        Returns:
+            float: Monthly rent costs in dollars
+        """
         return self._rent
 
     @rent.setter
     def rent(self, new_rent: float) -> bool:
+        """Monthly rent
+
+        Args:
+            new_rent (float): New monthly rent
+
+        Returns:
+            bool: Returns true if successfully replaced old rent variable
+        """
         self._rent = new_rent
         return True
 
     @property
-    def child_cost(self):
+    def child_cost(self) -> List[int]:
+        """Returns the monthly child cost list.
+
+        Returns:
+            List[int]: List containing the monthly child costs
+        """
         return self._child_cost
 
-    @child_cost.setter
-    def child_cost(self, new_child_cost: float) -> bool:
-        self._child_cost = new_child_cost
-        return True
-
     def add_child(self) -> None:
+        """Add a new child to the current child list. Adds a new child at age 0"""
         self._children_ages.append(0)
 
     def increment_year(self, include_rent: bool = True) -> float:
+        """Increment the living expenses fully a year. Increments the ages of
+        each child, and returns the yearly living costs.
+
+        Args:
+            include_rent (bool, optional): Indicates whether to include rental
+            costs in the calculation. False maybe applicable if you are
+            currently paying a mortgage. Defaults to True.
+
+        Returns:
+            float: Total amount paid for the year
+        """
 
         annual_expenses = 12 * self.monthly_living_costs(include_rent)
 
@@ -324,7 +453,15 @@ class LivingExpenses:
         return annual_expenses
 
     def monthly_living_costs(self, include_rent: bool) -> float:
+        """Calculates the monthly living costs, and returns it.
 
+        Args:
+            include_rent (bool): Flag about whether to include rental costs in
+            the final value.
+
+        Returns:
+            float: Monthly costs
+        """
         total_expenses = 0
 
         total_expenses += self._living_costs
@@ -342,12 +479,34 @@ class LivingExpenses:
 
 
 class Expense:
+    """General purpose expense class to keep track of miscellaneous expenses."""
+
     def __init__(self, amount: float, initial_year: int, recurrance: int = 0) -> None:
+        """Expense initializer. Either an expense is attached to a single year, or
+        is a recurring expense, which occurs at a yearly interval.
+
+        Args:
+            amount (float): Amount paid at the expense payment time
+            initial_year (int): Initial payment year of the expense, or the only year
+            if it is a non-recurring expense
+            recurrance (int, optional): Number of years in between payments for a
+            recurring expense. Defaults to 0, which indicates that it is a single-time
+            expense (non-recurring).
+        """
         self._amount = amount
         self._initial_year = initial_year
         self._recurrance = recurrance
 
     def year_cost(self, year: int) -> float:
+        """Calculates the year costs for this expense. Based on the payment nature of
+        the expense, determines whether there a payment for the input year.
+
+        Args:
+            year (int): Year to verify whether a payment is required for this expense
+
+        Returns:
+            float: The amount required to be paid for the input year.
+        """
         if self._initial_year == year:
             return self._amount
 
@@ -372,4 +531,12 @@ ontario_tax = Taxes(ONTARIO_BRACKETS, ONTARIO_TAX_RATES)
 
 
 def tax_payable(income: float) -> float:
+    """Calculates the Ontario and Federal tax required for the input income.
+
+    Args:
+        income (float): Income to determine tax payable.
+
+    Returns:
+        float: Required Federal and Ontario tax to pay.
+    """
     return federal_tax.tax_payable(income) + ontario_tax.tax_payable(income)
