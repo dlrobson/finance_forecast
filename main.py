@@ -4,6 +4,25 @@ from expenses import LivingExpenses, Mortgage
 from financial_unit import FinancialUnit, Person
 from saving_vessels import RRSP, TFSA, EmergencyFund, NonRegisteredAccount
 
+# TODO:
+# - Financial goals
+#   - Nest Egg goal. Retire immediately after?
+#   - HBP ?
+# - Settings to tick
+#   - Max RRSP/TFSA before house, or after house
+#
+# Employer RRSP matching
+# Keep track of tax avoided by using RRSP, and add RRIF when 71
+# Max allowed to contribute to mortgage
+# Multiple houses/properties/rental properties
+# Pretty graphs
+# Comments everywhere
+# Cap salary
+# RESP - no
+# Add python3 variable at top
+# RRIF would be very insightful
+# Graph with bar with divisions. Mortgage Interest, mortgage principal, EF, TFSA, RRSP, NRA contributions, expenses
+
 if __name__ == "__main__":
 
     age = 25
@@ -22,7 +41,8 @@ if __name__ == "__main__":
 
     people = [person, person2]
 
-    expenses = LivingExpenses(600, 1250)
+    # expenses = LivingExpenses(600, 1250)
+    expenses = LivingExpenses(1000, 1250)
     finances = FinancialUnit(2020, people, expenses)
 
     # age = 23

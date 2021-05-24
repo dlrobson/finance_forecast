@@ -5,7 +5,27 @@ RRSP_ROOM_PERCENT = 0.18
 TFSA_YEARLY_ROOM_INCREASE = 6000
 
 
+class BalanceTracker:
+    _balances = []
+    _years = []
+    _contributions = [0]
+
+    def __init__(self) -> None:
+        pass
+
+    def deposit(self, amount: float) -> None:
+        self._contributions[-1] += amount
+
+    def increment_year(self, year: int, balance: float):
+        self._years.append(year)
+        self._balances.append(balance)
+        self._contributions.append(0)
+
+
 class RegisteredAccount(ABC):
+
+    # _contributions = BalanceTracker()
+
     @property
     def balance(self):
         return self._balance
@@ -20,6 +40,7 @@ class RegisteredAccount(ABC):
 
         deposit_amount = min(self._contribution_room, amount)
         self._balance += deposit_amount
+        # self._contributions += deposit_amount
         self._contribution_room -= deposit_amount
         return deposit_amount
 
@@ -57,10 +78,12 @@ class TFSA(RegisteredAccount):
 
         withdraw_amount = min(self._balance, amount)
         self._curr_year_withdrawals += withdraw_amount
+        # self._contributions -= withdraw_amount
         self._balance -= withdraw_amount
         return withdraw_amount
 
     def increment_year(self, interest_rate: float) -> None:
+        # self._contributions.increment_year(year,)
         self._balance *= 1 + interest_rate
         self._contribution_room += (
             self._settings.tfsa_yearly_room_increase + self._curr_year_withdrawals
@@ -87,6 +110,7 @@ class RRSP(RegisteredAccount):
 
         withdraw_amount = min(self._balance, amount)
         self._balance -= withdraw_amount
+        # self._contributions -= withdraw_amount
         return withdraw_amount
 
     def increment_year(

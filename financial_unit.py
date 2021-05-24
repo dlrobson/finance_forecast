@@ -4,20 +4,6 @@ from expenses import Expense, LivingExpenses, Mortgage, tax_payable
 from saving_vessels import rrsp_before_tax_calc
 from person import Person
 
-# TODO:
-# - Financial goals
-#   - Nest Egg goal. Retire immediately after?
-#   - HBP ?
-# - Settings to tick
-#   - Max RRSP/TFSA before house, or after house
-#
-# Employer RRSP matching
-# Keep track of tax avoided by using RRSP, and add RRIF when 71
-# Max allowed to contribute to mortgage
-# Multiple houses/properties
-# Pretty graphs
-# Comments everywhere
-
 
 class FinancialUnit:
     def __init__(
