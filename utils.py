@@ -13,23 +13,33 @@ def plot_balances(
     rrsp_data = np.array(data._rrsp_balance) * rrsp_scale
     nra_data = np.array(data._nra_balance) * nra_scale
     house_principal = np.array(data._mortgage_principal)
-    ax.bar(years, tfsa_data, label="TFSA")
-    ax.bar(years, rrsp_data, bottom=tfsa_data, label="RRSP")
+    emergency_fund = np.array(data._emergency_fund)
+
+    ax.bar(years, emergency_fund, label="Emergency Fund")
+    ax.bar(years, tfsa_data, bottom=emergency_fund, label="TFSA")
+    ax.bar(years, rrsp_data, bottom=tfsa_data + emergency_fund, label="RRSP")
     ax.bar(
         years,
         nra_data,
-        bottom=rrsp_data + tfsa_data,
+        bottom=rrsp_data + tfsa_data + emergency_fund,
         label="NRA",
     )
     ax.bar(
         years,
         house_principal,
-        bottom=rrsp_data + tfsa_data + nra_data,
+        bottom=rrsp_data + tfsa_data + nra_data + emergency_fund,
         label="House Principal",
     )
 
-    ax.set_ylabel("Amount")
-    ax.set_title("Balances over time")
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Adjusted Balance ($)")
+    ax.set_title("Net Worth")
     ax.legend()
-    print(tfsa_data[-1] + rrsp_data[-1] + nra_data[-1])
+    print(
+        tfsa_data[-1]
+        + rrsp_data[-1]
+        + nra_data[-1]
+        + house_principal[-1]
+        + emergency_fund[-1]
+    )
     plt.show()

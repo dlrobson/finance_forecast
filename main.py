@@ -39,21 +39,24 @@ if __name__ == "__main__":
     settings = person.settings
     settings.allow_tfsa_withdrawal = True
     settings.retirement_age = 65
-    settings.max_retirement_contribution = 0.2
+    settings.max_retirement_contribution = 1.0
     settings.annual_salary_increase = 0.02
     person.settings = settings
+    people = [person]
 
-    person2 = deepcopy(person)
-    person2._salary = 65000
+    # person2 = deepcopy(person)
+    # person2._salary = 65000
+    # people = [person, person2]
 
-    people = [person, person2]
-    # people = [person]
-
-    expenses = LivingExpenses(1500, 2000)
+    expenses = LivingExpenses(1000, 1250)
     finances = FinancialUnit(2022, people, expenses)
+
+    financial_unit_settings = finances.settings
+    financial_unit_settings.pay_house_down_asap = True
+    finances.settings = financial_unit_settings
+    people = [person]
 
     mortgage = Mortgage(800000, 160000)
     finances.house_purchase(mortgage)
-    finances.increment_n_years(50)
-    print(settings.max_retirement_contribution)
+    finances.increment_n_years(65 - 26)
     plot_balances(finances._balance_tracker, rrsp_scale=0.70, nra_scale=0.80)

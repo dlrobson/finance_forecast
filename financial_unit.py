@@ -16,6 +16,7 @@ from person import Person
 class BalanceTracker:
     def __init__(self) -> None:
         self._tfsa_balance = []
+        self._emergency_fund = []
         self._rrsp_balance = []
         self._nra_balance = []
         self._mortgage_principal = []
@@ -23,6 +24,7 @@ class BalanceTracker:
 
     def prepare_next_iteration(self, year: int) -> None:
         self._tfsa_balance.append(0)
+        self._emergency_fund.append(0)
         self._years.append(year)
         self._rrsp_balance.append(0)
         self._nra_balance.append(0)
@@ -36,6 +38,19 @@ class FinancialUnit:
         self._persons = persons
         self._living_expenses = living_expenses
         self._year = init_year
+
+    class Settings:
+        pay_house_down_asap = True
+
+    _settings = Settings()
+
+    @property
+    def settings(self) -> Settings:
+        return self._settings
+
+    @settings.setter
+    def settings(self, new_settings: Settings) -> None:
+        self._settings = new_settings
 
     class MortgageGoal:
 
@@ -187,6 +202,9 @@ class FinancialUnit:
 
                 self._persons[person_i]._age += 1
 
+                self._balance_tracker._emergency_fund[-1] += self._persons[
+                    person_i
+                ]._emergency_fund.balance
                 # Update balance tracker with new values
                 self._balance_tracker._tfsa_balance[-1] += self._persons[
                     person_i
@@ -217,7 +235,7 @@ class FinancialUnit:
         2.  Contribute TFSA
         3.  Contribute NRA until house is purchased
         4.  Contribute TFSA and RRSP afterwards, ~15% per year total
-            - Any extra cash goes towards mortgage
+            - Any extra cash goes towards mortgage if pay_house_down_asap is True
         5.  Once mortgage is paid off, contribute additional money to
             TFSA > RRSP > NRA
 
@@ -291,7 +309,8 @@ class FinancialUnit:
         # Any remaining money gets contributed to the house, and anything remaining is
         # placed within in the non-registered account.
         if (
-            self._mortgage_goal is not None
+            self._settings.pay_house_down_asap
+            and self._mortgage_goal is not None
             and self._mortgage_goal.is_active()
             and not self._mortgage_goal.mortgage.is_house_paid()
         ):
