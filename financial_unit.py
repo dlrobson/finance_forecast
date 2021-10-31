@@ -18,7 +18,7 @@ class BalanceTracker:
         self._tfsa_balance = []
         self._rrsp_balance = []
         self._nra_balance = []
-        self._mortgage_balance = []
+        self._mortgage_principal = []
         self._years = []
 
     def prepare_next_iteration(self, year: int) -> None:
@@ -26,7 +26,7 @@ class BalanceTracker:
         self._years.append(year)
         self._rrsp_balance.append(0)
         self._nra_balance.append(0)
-        self._mortgage_balance.append(0)
+        self._mortgage_principal.append(0)
 
 
 class FinancialUnit:
@@ -200,15 +200,14 @@ class FinancialUnit:
 
             if self._mortgage_goal is not None:
                 if self._mortgage_goal.is_active():
-                    self._balance_tracker._mortgage_balance[
-                        -1
-                    ] = self._mortgage_goal.mortgage.principal_remaining
+                    self._balance_tracker._mortgage_principal[-1] = (
+                        self._mortgage_goal.mortgage._house_cost
+                        - self._mortgage_goal.mortgage.principal_remaining
+                    )
+
                     self._mortgage_goal.mortgage.iterate_n_months(12)
                 else:
-                    self._balance_tracker._mortgage_balance[-1] = (
-                        self._mortgage_goal.mortgage.principal_remaining
-                        + self._mortgage_goal.mortgage.down_payment
-                    )
+                    self._balance_tracker._mortgage_principal[-1] = 0
 
             self._year += 1
 
