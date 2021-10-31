@@ -1,8 +1,32 @@
+#!/usr/bin/env python3
 from typing import List
 
-from expenses import Expense, LivingExpenses, Mortgage, tax_payable
+from expenses import (
+    Expense,
+    LivingExpenses,
+    Mortgage,
+    tax_payable,
+    ei_contribution,
+    cpp_contribution,
+)
 from saving_vessels import rrsp_before_tax_calc
 from person import Person
+
+
+class BalanceTracker:
+    def __init__(self) -> None:
+        self._tfsa_balance = []
+        self._rrsp_balance = []
+        self._nra_balance = []
+        self._mortgage_balance = []
+        self._years = []
+
+    def prepare_next_iteration(self, year: int) -> None:
+        self._tfsa_balance.append(0)
+        self._years.append(year)
+        self._rrsp_balance.append(0)
+        self._nra_balance.append(0)
+        self._mortgage_balance.append(0)
 
 
 class FinancialUnit:
@@ -27,6 +51,7 @@ class FinancialUnit:
             self._active = set_to_active
 
     _mortgage_goal = None
+    _balance_tracker = BalanceTracker()
     _expenses = []
     _children = []
 
@@ -79,7 +104,7 @@ class FinancialUnit:
         # Stores the Mortgage information
         self._mortgage_goal = self.MortgageGoal(mortgage)
 
-    def __withdrawable_cash(self, after_tax_calc: bool = False) -> tuple:
+    def __withdrawable_cash(self, after_tax_calc: bool = True) -> tuple:
 
         withdrawable_cash = []
         sum = 0
@@ -93,7 +118,7 @@ class FinancialUnit:
 
         return withdrawable_cash, sum
 
-    def __withdraw_cash(self, amount: float, after_tax_calc: bool = False) -> float:
+    def __withdraw_cash(self, amount: float, after_tax_calc: bool = True) -> float:
 
         withdrawable_cash, sum = self.__withdrawable_cash(after_tax_calc)
 
@@ -131,13 +156,14 @@ class FinancialUnit:
 
     def increment_n_years(self, n: int) -> None:
         for _ in range(n):
+            self._balance_tracker.prepare_next_iteration(self._year)
+
             for person_i in range(len(self._persons)):
-                # Calculate expenses
 
                 self.__calculate_person_contribution(person_i)
 
                 # Iterate to next year
-                self._persons[person_i]._yearly_capital_gains_income = 0
+                self._persons[person_i]._yearly_investment_taxable_income = 0
                 self._persons[person_i]._salary *= (
                     1 + self._persons[person_i]._settings.annual_salary_increase
                 )
@@ -161,11 +187,28 @@ class FinancialUnit:
 
                 self._persons[person_i]._age += 1
 
-            if (
-                self._mortgage_goal.mortgage is not None
-                and self._mortgage_goal.is_active()
-            ):
-                self._mortgage_goal.mortgage.iterate_n_months(12)
+                # Update balance tracker with new values
+                self._balance_tracker._tfsa_balance[-1] += self._persons[
+                    person_i
+                ]._tfsa.balance
+                self._balance_tracker._rrsp_balance[-1] += self._persons[
+                    person_i
+                ]._rrsp.balance
+                self._balance_tracker._nra_balance[-1] += self._persons[
+                    person_i
+                ]._nra.balance
+
+            if self._mortgage_goal is not None:
+                if self._mortgage_goal.is_active():
+                    self._balance_tracker._mortgage_balance[
+                        -1
+                    ] = self._mortgage_goal.mortgage.principal_remaining
+                    self._mortgage_goal.mortgage.iterate_n_months(12)
+                else:
+                    self._balance_tracker._mortgage_balance[-1] = (
+                        self._mortgage_goal.mortgage.principal_remaining
+                        + self._mortgage_goal.mortgage.down_payment
+                    )
 
             self._year += 1
 
@@ -193,7 +236,9 @@ class FinancialUnit:
             # gains to pay.
             else:
                 withdrawn_cash = self._persons[person_i].withdraw_cash(
-                    self._persons[person_i].withdrawable_cash(True)
+                    self._persons[person_i].withdrawable_cash(
+                        after_tax_calc=False, include_retirement=False
+                    )
                 )
 
         # net_positive will hold how much money we have left after taxes and expenses.
@@ -203,16 +248,19 @@ class FinancialUnit:
         while net_positive < 0:
             bt_income = (
                 self._persons[person_i]._salary
-                + self._persons[person_i]._yearly_capital_gains_income
+                + self._persons[person_i]._yearly_investment_taxable_income
             )
+
+            ei_amount = ei_contribution(bt_income)
+            cpp_amount = cpp_contribution(bt_income)
             tax = tax_payable(bt_income)
-            at_income = bt_income - tax
+            at_income = bt_income - tax - ei_amount - cpp_amount
 
             # Divide the expenses between persons
             living_expenses = self.__annual_living_expenses() / len(self._persons)
             net_positive = at_income + withdrawn_cash - living_expenses
 
-            # If this number if negative, then we need to withdraw enough money
+            # If this number is negative, then we need to withdraw money
             if net_positive < 0:
                 withdrawn_cash += self._persons[person_i].withdraw_cash(-net_positive)
 
@@ -355,19 +403,23 @@ class FinancialUnit:
         # Now, check the RRSP. If we have additional money max out the required
         # contribution for retirement. Then, pay additional to the house.
         if (
-            self._mortgage_goal is not None
+            remaining_contribution_retirement > 0.1
+            or self._mortgage_goal is not None
             and not self._mortgage_goal.mortgage.is_house_paid()
         ):
+
+            # At most, we can contribute either remaining_contribution_retirement,
+            # contribution_room, or our remaining amount of money
             RRSP_AT_contribution = min(
                 self._persons[person_i]._rrsp.contribution_room,
                 remaining_contribution_retirement,
+                remaining_balance,
             )
         else:
             RRSP_AT_contribution = min(
                 self._persons[person_i]._rrsp.contribution_room,
                 remaining_balance,
             )
-
         # We need to calculate the beforetax contribution. The aftertax contribution we
         # have should be reduced by the after tax contribution
 

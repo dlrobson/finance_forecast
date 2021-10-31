@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from abc import ABC, abstractmethod
 from expenses import tax_payable
 
@@ -5,27 +6,7 @@ RRSP_ROOM_PERCENT = 0.18
 TFSA_YEARLY_ROOM_INCREASE = 6000
 
 
-class BalanceTracker:
-    _balances = []
-    _years = []
-    _contributions = [0]
-
-    def __init__(self) -> None:
-        pass
-
-    def deposit(self, amount: float) -> None:
-        self._contributions[-1] += amount
-
-    def increment_year(self, year: int, balance: float):
-        self._years.append(year)
-        self._balances.append(balance)
-        self._contributions.append(0)
-
-
 class RegisteredAccount(ABC):
-
-    # _contributions = BalanceTracker()
-
     @property
     def balance(self):
         return self._balance

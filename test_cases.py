@@ -1,6 +1,15 @@
+#!/usr/bin/env python3
 import unittest
 
-from expenses import DEFAULT_CHILD_COSTS, LivingExpenses, Mortgage, Taxes, tax_payable
+from expenses import (
+    DEFAULT_CHILD_COSTS,
+    LivingExpenses,
+    Mortgage,
+    Taxes,
+    tax_payable,
+    ei_contribution,
+    cpp_contribution,
+)
 from financial_unit import FinancialUnit, Person
 from saving_vessels import (
     RRSP,
@@ -23,6 +32,11 @@ class TestSavingMethods(unittest.TestCase):
         self.assertEqual(federal_tax.tax_payable(1000), 0)
         self.assertEqual(federal_tax.tax_payable(11000), 1000)
         self.assertEqual(federal_tax.tax_payable(111000), 21000)
+
+    def test_salary_after_contributions(self):
+        self.assertAlmostEqual(ei_contribution(100000), 889.54)
+        self.assertAlmostEqual(cpp_contribution(100000), 3166.45)
+        self.assertAlmostEqual(tax_payable(100000), 22989.91, delta=0.01)
 
     def test_tax_increment(self):
         federal_tax = Taxes(BRACKETS, TEST_TAX_RATES)

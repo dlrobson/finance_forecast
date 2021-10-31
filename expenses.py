@@ -1,7 +1,15 @@
+#!/usr/bin/env python3
 """Class container holding various classes for Taxes, Mortgage, LivingExpenses, and
 Expenses.
 """
 from typing import List
+
+EI_CONTRIBUTION_PER_DOLLAR = 0.0158
+EI_MAX_CONTRIBUTION = 889.54
+
+CPP_CONTRIBUTION_PER_DOLLAR = 0.0495
+CPP_MAX_CONTRIBUTION = 3166.45
+CPP_CONTRIBUTION_ROOM_EXEMPT = 3500
 
 
 class Taxes:
@@ -542,3 +550,14 @@ def tax_payable(income: float) -> float:
         float: Required Federal and Ontario tax to pay.
     """
     return FEDERAL_TAX.tax_payable(income) + ONTARIO_TAX.tax_payable(income)
+
+
+def ei_contribution(income: float) -> float:
+    return min(EI_MAX_CONTRIBUTION, EI_CONTRIBUTION_PER_DOLLAR * income)
+
+
+def cpp_contribution(income: float) -> float:
+    return min(
+        CPP_MAX_CONTRIBUTION,
+        (income - CPP_CONTRIBUTION_ROOM_EXEMPT) * CPP_CONTRIBUTION_PER_DOLLAR,
+    )
