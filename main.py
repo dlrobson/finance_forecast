@@ -14,6 +14,7 @@ from utils import plot_balances
 # - Settings to tick
 #   - Max RRSP/TFSA before house, or after house
 #
+# Ontario surtax: https://paycheckguru.com/tax-brackets-and-marginal-tax-rates-in-canada/ontario-personal-marginal-income-tax-rates-2/
 # House expenses should be included, property tax etc
 # Employer RRSP matching
 # Keep track of tax avoided by using RRSP, and add RRIF when 71
